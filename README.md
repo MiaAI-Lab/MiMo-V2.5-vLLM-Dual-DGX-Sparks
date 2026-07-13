@@ -268,6 +268,7 @@ This is **not** stock pip vLLM.
 - **Runtime image (GHCR):** `ghcr.io/miaai-lab/mimo-v2.5-vllm-dual-dgx-sparks:20260704` (also `:latest`)  
   - Base lineage: Tony’s Spark DEV vLLM `0.21.1rc1.dev85` (CUDA 13.2 / GB10)  
   - Pull: `docker pull ghcr.io/miaai-lab/mimo-v2.5-vllm-dual-dgx-sparks:20260704`  
+  - `start.sh` **skips GHCR** if that tag is already local; if the worker lacks it but the head has it, it **streams head → worker** (`docker save|load`) instead of pulling. Optional: `SKIP_IMAGE_PULL=1`, or `LOCAL_IMAGE_ALIASES=my-local:tag` to retag.  
 - **vLLM:** `0.21.1rc1.dev85+gd87ee1893` (CUDA 13.2 / GB10)  
 - **Ray** required for cross-node TP=2  
 
@@ -339,6 +340,7 @@ Ray object store is capped at **1 GiB** per node; `RAY_TMPDIR` defaults to `/d
 1. **`enable_thinking: false`** (launcher default chat-template kwargs).  
 2. Prefer **`repetition_penalty=1.0`** when chasing raw tok/s; server default sampling may use 1.08 for stability.  
 3. Keep **NCCL LL + 2 channels** on the Spark interconnect.  
+4. **First token after load is slow** — expected. This recipe uses `--enforce-eager` (no CUDA graphs) for 1M + NVFP4-KV + MTP stability, plus cold Triton/FlashInfer warmup and a full prompt prefill over TP=2/RoCE before any output token. Later requests on a warm engine are much snappier; MTP helps decode tok/s more than TTFT.
 
 Validated Omni MTP1 reference on this stack: ~**31–32 tok/s** (not DFlash’s ~38).
 
@@ -351,6 +353,7 @@ Validated Omni MTP1 reference on this stack: ~**31–32 tok/s** (not DFlash’s 
 | OOM on load / profile | Confirm mods; Ray object store 1 GiB; `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True`; try `GPU_MEMORY_UTILIZATION=0.82` + `MAX_MODEL_LEN=500000` |
 | Worker `169.254.x.x` | Set `VLLM_HOST_IP` / `--node-ip-address` to RoCE IP on each node |
 | Incomplete weights | `start.sh` resumes `hf download` and re-checks shards / `*.incomplete` |
+| First chat token very slow after boot | Normal on this stack (eager + cold kernels + prefill); wait it out, then retry — subsequent TTFT should drop |
 | Port open but empty chat | Wait for `Application startup complete`; first long-ctx request can be slow |
 | Accidental full relaunch | Do **not** `source start.sh` — always `bash start.sh` |
 | Still see `…-DFlash-…` | Old process; `bash stop.sh` then `bash start.sh` to bring Omni |

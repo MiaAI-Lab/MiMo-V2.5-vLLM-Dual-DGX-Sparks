@@ -66,6 +66,12 @@ CONTAINER_NAME="${CONTAINER_NAME:-mimo-nvfp4}"
 BASE_IMAGE="${BASE_IMAGE:-ghcr.io/miaai-lab/mimo-v2.5-vllm-dual-dgx-sparks:base-20260620}"
 OVERLAY_TAG="${OVERLAY_TAG:-ghcr.io/miaai-lab/mimo-v2.5-vllm-dual-dgx-sparks:20260704}"
 BASE_TAG="${BASE_TAG:-ghcr.io/miaai-lab/mimo-v2.5-vllm-dual-dgx-sparks:base-20260620}"
+# If the exact OVERLAY_TAG is already local, we never touch GHCR.
+# Optional comma-separated local names to retag → OVERLAY_TAG when the GHCR
+# name is missing (air-gapped / private package). Empty = no alias retag.
+LOCAL_IMAGE_ALIASES="${LOCAL_IMAGE_ALIASES:-}"
+# 1 = never docker pull from registry (local / head→worker only).
+SKIP_IMAGE_PULL="${SKIP_IMAGE_PULL:-0}"
 WORKER_REPO_DIR="${WORKER_REPO_DIR:-/home/zurih/mimo-nvfp4-recipe}"  # rsync target on worker
 
 # Host-side HF cache model dir (auto-detected if blank):
@@ -138,30 +144,60 @@ step() {
   printf '%s%s────────────────────────────────────────────────────────────%s\n' "$C_DIM" "$C_BOLD" "$C_RESET"
 }
 
+# Fixed-width double-line box rows (inner width = BOX_W). Avoids hand-counted
+# spaces drifting when titles change or Unicode middots widen the line.
+BOX_W=62
+_BOX_BAR="$(printf '%*s' "$BOX_W" '' | sed 's/ /═/g')"
+# Pad/truncate by Unicode character count (bash ${#s}), not bytes — printf
+# %-Ns is byte-oriented and mis-aligns lines that contain · / — / etc.
+_pad_chars() {
+  local text="$1" width="$2" n=${#1} pad
+  if (( n > width )); then
+    printf '%s' "${text:0:width}"
+  else
+    pad=$((width - n))
+    printf '%s%*s' "$text" "$pad" ''
+  fi
+}
+_box_rule() { # $1=color $2=left-corner $3=right-corner  (╔╗ / ╠╣ / ╚╝)
+  local color="$1" lc="$2" rc="$3"
+  printf '%s%s%s%s%s%s\n' "$color" "$C_BOLD" "$lc" "$_BOX_BAR" "$rc" "$C_RESET"
+}
+_box_row() { # $1=frame-color $2=optional-text-color-or-empty $3=inner text
+  local fc="$1" tc="${2:-}" text="$3" pad
+  pad="$(_pad_chars "$text" "$BOX_W")"
+  if [ -n "$tc" ]; then
+    printf '%s%s║%s%s%s%s%s%s║%s\n' "$fc" "$C_BOLD" "$C_RESET" "$tc" "$pad" "$C_RESET" "$fc" "$C_BOLD" "$C_RESET"
+  else
+    printf '%s%s║%s%s%s%s║%s\n' "$fc" "$C_BOLD" "$C_RESET" "$pad" "$fc" "$C_BOLD" "$C_RESET"
+  fi
+}
+
 banner() {
   local mode="${1:-bring-up}"
   printf '\n'
-  printf '%s%s╔══════════════════════════════════════════════════════════════╗%s\n' "$C_CYAN" "$C_BOLD" "$C_RESET"
-  printf '%s%s║%s  Mia'\''s MiMo-V2.5 Dual DGX Spark Start Script              %s%s║%s\n' "$C_CYAN" "$C_BOLD" "$C_RESET" "$C_CYAN" "$C_BOLD" "$C_RESET"
-  printf '%s%s║%s  Omni · MTP1 · NVFP4-KV · TP=2                              %s%s║%s\n' "$C_CYAN" "$C_BOLD" "$C_RESET" "$C_CYAN" "$C_BOLD" "$C_RESET"
-  printf '%s%s║%s  %s%-56s%s %s%s║%s\n' "$C_CYAN" "$C_BOLD" "$C_RESET" "$C_DIM" "$mode" "$C_RESET" "$C_CYAN" "$C_BOLD" "$C_RESET"
-  printf '%s%s╚══════════════════════════════════════════════════════════════╝%s\n' "$C_CYAN" "$C_BOLD" "$C_RESET"
+  _box_rule "$C_CYAN" '╔' '╗'
+  _box_row  "$C_CYAN" '' "  Mia's MiMo-V2.5 Dual DGX Spark Start Script"
+  _box_row  "$C_CYAN" '' "  Omni · MTP1 · NVFP4-KV · TP=2"
+  _box_row  "$C_CYAN" "$C_DIM" "  ${mode}"
+  _box_rule "$C_CYAN" '╚' '╝'
   printf '%s  %s:%s  →  %s (TP1)   ·  %s%s\n\n' \
     "$C_DIM" "$HEAD_IP" "$VLLM_PORT" "$WORKER_IP" "$SERVED_MODEL_NAME" "$C_RESET"
 }
 
 success_banner() {
   local reply="$1"
+  local api="http://${HEAD_IP}:${VLLM_PORT}/v1"
+  local shape="${MAX_MODEL_LEN} ctx · ${MAX_NUM_SEQS} seqs · GMU ${GPU_MEMORY_UTILIZATION} · MTP${MTP_SPEC_TOKENS}"
   printf '\n'
-  printf '%s%s╔════════════════════════════════════════════════════════════╗%s\n' "$C_GREEN" "$C_BOLD" "$C_RESET"
-  printf '%s%s║%s  READY — chat verified                                    %s%s║%s\n' "$C_GREEN" "$C_BOLD" "$C_RESET" "$C_GREEN" "$C_BOLD" "$C_RESET"
-  printf '%s%s╠════════════════════════════════════════════════════════════╣%s\n' "$C_GREEN" "$C_BOLD" "$C_RESET"
-  printf '%s%s║%s  API     http://%s:%s/v1%-23s%s%s║%s\n' "$C_GREEN" "$C_BOLD" "$C_RESET" "$HEAD_IP" "$VLLM_PORT" "" "$C_GREEN" "$C_BOLD" "$C_RESET"
-  printf '%s%s║%s  model   %-48s%s%s║%s\n' "$C_GREEN" "$C_BOLD" "$C_RESET" "$SERVED_MODEL_NAME" "$C_GREEN" "$C_BOLD" "$C_RESET"
-  printf '%s%s║%s  shape   %s ctx · %s seqs · GMU %s · MTP%s%-8s%s%s║%s\n' \
-    "$C_GREEN" "$C_BOLD" "$C_RESET" "$MAX_MODEL_LEN" "$MAX_NUM_SEQS" "$GPU_MEMORY_UTILIZATION" "$MTP_SPEC_TOKENS" "" "$C_GREEN" "$C_BOLD" "$C_RESET"
-  printf '%s%s║%s  reply   %-48s%s%s║%s\n' "$C_GREEN" "$C_BOLD" "$C_RESET" "${reply:0:48}" "$C_GREEN" "$C_BOLD" "$C_RESET"
-  printf '%s%s╚════════════════════════════════════════════════════════════╝%s\n' "$C_GREEN" "$C_BOLD" "$C_RESET"
+  _box_rule "$C_GREEN" '╔' '╗'
+  _box_row  "$C_GREEN" '' "  READY — chat verified"
+  _box_rule "$C_GREEN" '╠' '╣'
+  _box_row  "$C_GREEN" '' "  API     ${api}"
+  _box_row  "$C_GREEN" '' "  model   ${SERVED_MODEL_NAME}"
+  _box_row  "$C_GREEN" '' "  shape   ${shape}"
+  _box_row  "$C_GREEN" '' "  reply   ${reply:0:48}"
+  _box_rule "$C_GREEN" '╚' '╝'
   printf '\n%sSmoke:%s\n' "$C_BOLD" "$C_RESET"
   printf '  curl -s http://%s:%s/v1/models | jq .\n' "$HEAD_IP" "$VLLM_PORT"
   printf '  bash %s/stop.sh\n\n' "$REPO_DIR"
@@ -533,42 +569,114 @@ precheck() {
 # Runtime image. Prefer pulling the published GHCR image (~20GB); fall back to
 # building the local patches/Dockerfile overlay from BASE_IMAGE if pull fails.
 ###############################################################################
+# Retag first matching local alias → OVERLAY_TAG. Returns 0 on success.
+_retag_local_alias() { # $1 = head|worker
+  local node="$1" aliases="$LOCAL_IMAGE_ALIASES" a
+  [ -z "$aliases" ] && return 1
+  IFS=',' read -ra _aliases <<< "$aliases"
+  for a in "${_aliases[@]}"; do
+    a="$(echo "$a" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+    [ -z "$a" ] && continue
+    if [ "$node" = head ]; then
+      if docker image inspect "$a" >/dev/null 2>&1; then
+        hlog "retagging local alias $a → $OVERLAY_TAG"
+        docker tag "$a" "$OVERLAY_TAG"
+        return 0
+      fi
+    else
+      if sshw "docker image inspect '$a' >/dev/null 2>&1"; then
+        wlog "retagging local alias $a → $OVERLAY_TAG on worker"
+        sshw "docker tag '$a' '$OVERLAY_TAG'"
+        return 0
+      fi
+    fi
+  done
+  return 1
+}
+
+# Copy OVERLAY_TAG from head local store → worker (no GHCR). ~20GB.
+_transfer_overlay_head_to_worker() {
+  wlog "transferring $OVERLAY_TAG from head → worker (local docker save/load, no GHCR)"
+  docker image inspect "$OVERLAY_TAG" >/dev/null 2>&1 \
+    || { err "head lacks $OVERLAY_TAG — cannot transfer"; return 1; }
+  # Stream save|load; retag in case load only restores digest IDs.
+  docker save "$OVERLAY_TAG" | ssh "${SSH_OPTS[@]}" "${SSH_USER}@${WORKER_IP}" \
+    "docker load && docker tag '$OVERLAY_TAG' '$OVERLAY_TAG' 2>/dev/null || true"
+  sshw "docker image inspect '$OVERLAY_TAG' >/dev/null 2>&1" \
+    || { err "worker still missing $OVERLAY_TAG after transfer"; return 1; }
+  wlog "worker now has $OVERLAY_TAG"
+}
+
 ensure_image_head() {
   hlog "ensuring runtime image on head: $OVERLAY_TAG"
   if docker image inspect "$OVERLAY_TAG" >/dev/null 2>&1; then
-    hlog "image already present"
+    hlog "image already present locally — skipping GHCR"
     return 0
   fi
-  hlog "pulling $OVERLAY_TAG (~20GB) ..."
+  if _retag_local_alias head; then
+    return 0
+  fi
+  if [ "$SKIP_IMAGE_PULL" = "1" ]; then
+    err "head missing $OVERLAY_TAG and SKIP_IMAGE_PULL=1 (no GHCR)"
+    return 1
+  fi
+  hlog "image not local — pulling $OVERLAY_TAG (~20GB) ..."
   if docker pull "$OVERLAY_TAG"; then
     hlog "image ready: $OVERLAY_TAG"
     return 0
   fi
   hlog "pull failed — building overlay from $BASE_IMAGE"
   if ! docker image inspect "$BASE_TAG" >/dev/null 2>&1; then
-    docker pull "$BASE_IMAGE"
+    [ "$SKIP_IMAGE_PULL" = "1" ] && { err "missing base $BASE_TAG"; return 1; }
+    docker pull "$BASE_IMAGE" || return 1
     docker tag "$BASE_IMAGE" "$BASE_TAG"
   fi
-  docker build -t "$OVERLAY_TAG" -f "$REPO_DIR/patches/Dockerfile" "$REPO_DIR/patches"
+  docker build -t "$OVERLAY_TAG" -f "$REPO_DIR/patches/Dockerfile" "$REPO_DIR/patches" || return 1
   hlog "overlay image ready: $OVERLAY_TAG"
 }
 
 ensure_image_worker() {
   wlog "ensuring runtime image on worker: $OVERLAY_TAG"
   local ctx="$WORKER_REPO_DIR/patches"
+  if sshw "docker image inspect '$OVERLAY_TAG' >/dev/null 2>&1"; then
+    wlog "image already present locally — skipping GHCR"
+    return 0
+  fi
+  if _retag_local_alias worker; then
+    return 0
+  fi
+  # Prefer head's local copy over a GHCR pull (private package / no worker login).
+  if docker image inspect "$OVERLAY_TAG" >/dev/null 2>&1; then
+    _transfer_overlay_head_to_worker || return 1
+    return 0
+  fi
+  if [ "$SKIP_IMAGE_PULL" = "1" ]; then
+    err "worker missing $OVERLAY_TAG and SKIP_IMAGE_PULL=1 (no GHCR)"
+    return 1
+  fi
+  wlog "image not local — pulling $OVERLAY_TAG on worker (~20GB) ..."
+  if sshw "docker pull '$OVERLAY_TAG'"; then
+    wlog "image ready on worker"
+    return 0
+  fi
+  wlog "pull failed — building overlay from $BASE_IMAGE on worker"
   sshw "
     set -e
-    if docker image inspect '$OVERLAY_TAG' >/dev/null 2>&1; then echo 'image present'; exit 0; fi
-    echo 'pulling $OVERLAY_TAG on worker (~20GB) ...'
-    if docker pull '$OVERLAY_TAG'; then echo 'image ready'; exit 0; fi
-    echo 'pull failed — building overlay from $BASE_IMAGE'
     if ! docker image inspect '$BASE_TAG' >/dev/null 2>&1; then
       docker pull '$BASE_IMAGE'
       docker tag '$BASE_IMAGE' '$BASE_TAG'
     fi
     docker build -t '$OVERLAY_TAG' -f '$ctx/Dockerfile' '$ctx'
-    echo 'overlay ready on worker'
-  "
+  " || { err "worker could not obtain $OVERLAY_TAG (local/GHCR/build all failed)"; return 1; }
+  wlog "overlay ready on worker"
+}
+
+_container_running() { # $1 = head|worker
+  if [ "$1" = head ]; then
+    docker inspect -f '{{.State.Running}}' "$CONTAINER_NAME" 2>/dev/null | grep -qx true
+  else
+    sshw "docker inspect -f '{{.State.Running}}' '$CONTAINER_NAME' 2>/dev/null" | grep -qx true
+  fi
 }
 
 run_container_one() { # $1 = node tag head|worker, $2 = host MODEL dir, $3 = recipe dir
@@ -590,7 +698,8 @@ run_container_one() { # $1 = node tag head|worker, $2 = host MODEL dir, $3 = rec
       --ulimit stack=67108864 \
       -v "$mdir:/model_cache:ro" \
       -v "$rdir:/workspace" \
-      "$OVERLAY_TAG" sleep infinity
+      "$OVERLAY_TAG" sleep infinity \
+      || { err "docker run failed on head"; return 1; }
   else
     sshw "
       docker rm -f '$CONTAINER_NAME' 2>/dev/null || true
@@ -607,7 +716,14 @@ run_container_one() { # $1 = node tag head|worker, $2 = host MODEL dir, $3 = rec
         -v '$mdir:/model_cache:ro' \
         -v '$rdir:/workspace' \
         '$OVERLAY_TAG' sleep infinity
-    "
+    " || { err "docker run failed on worker — image missing? last docker images:"; \
+          sshw "docker images | head -20" >&2; return 1; }
+  fi
+  if ! _container_running "$node"; then
+    err "$node container $CONTAINER_NAME is not running"
+    if [ "$node" = head ]; then docker ps -a --filter "name=$CONTAINER_NAME" >&2
+    else sshw "docker ps -a --filter name=$CONTAINER_NAME" >&2; fi
+    return 1
   fi
   $tag "container up"
 }
@@ -735,6 +851,11 @@ ray_up_head() {
 
 ray_up_worker() {
   wlog "worker joining Ray cluster"
+  if ! _container_running worker; then
+    err "worker has no running container $CONTAINER_NAME — cannot join Ray"
+    sshw "docker ps -a --filter name=$CONTAINER_NAME; docker images | head -15" >&2 || true
+    return 1
+  fi
   sshw "
     docker exec '$CONTAINER_NAME' bash -lc '
       unset RAY_OVERRIDE_NODE_IP_ADDRESS RAY_NODE_IP_ADDRESS
@@ -750,13 +871,19 @@ ray_up_worker() {
       ray start --address=$HEAD_ROCE_IP:$RAY_PORT --node-ip-address=$WORKER_ROCE_IP \
         --num-gpus=1 --object-store-memory=1073741824
     '
-  "
+  " || { err "worker ray start failed"; sshw "docker logs --tail 40 $CONTAINER_NAME" >&2 || true; return 1; }
 }
 
 wait_2_gpus() {
   hlog "waiting for ray status to show 2.0/2.0 GPU (timeout ${RAY_WAIT_TIMEOUT}s)"
   local elapsed=0
   while [ $elapsed -lt $RAY_WAIT_TIMEOUT ]; do
+    if ! _container_running worker; then
+      echo
+      err "worker container $CONTAINER_NAME disappeared while waiting for 2/2 GPU"
+      sshw "docker ps -a --filter name=$CONTAINER_NAME; docker logs --tail 40 $CONTAINER_NAME" >&2 || true
+      return 1
+    fi
     if docker exec -e RAY_ADDRESS="$HEAD_ROCE_IP:$RAY_PORT" "$CONTAINER_NAME" ray status 2>/dev/null | grep -qE '2\.0(/2\.0)? GPU'; then
       hlog "Ray cluster healthy: 2.0/2.0 GPU"
       docker exec -e RAY_ADDRESS="$HEAD_ROCE_IP:$RAY_PORT" "$CONTAINER_NAME" ray status 2>/dev/null | sed 's/^/    /'
@@ -764,11 +891,18 @@ wait_2_gpus() {
     fi
     sleep 5; elapsed=$((elapsed+5))
     printf '.'
-    [ $((elapsed % 60)) -eq 0 ] && hlog "still waiting for 2/2 GPU (${elapsed}s)"
+    if [ $((elapsed % 60)) -eq 0 ]; then
+      hlog "still waiting for 2/2 GPU (${elapsed}s)"
+      docker exec -e RAY_ADDRESS="$HEAD_ROCE_IP:$RAY_PORT" "$CONTAINER_NAME" ray status 2>/dev/null \
+        | sed 's/^/    /' || true
+      sshw "docker inspect -f 'worker container={{.State.Status}}' $CONTAINER_NAME 2>/dev/null || echo 'worker container=MISSING'" \
+        | sed 's/^/    /' || true
+    fi
   done
   echo
   err "Ray did not reach 2.0/2.0 GPU in ${RAY_WAIT_TIMEOUT}s"
   docker exec -e RAY_ADDRESS="$HEAD_ROCE_IP:$RAY_PORT" "$CONTAINER_NAME" ray status 2>&1 | sed 's/^/    /'
+  sshw "docker ps -a --filter name=$CONTAINER_NAME; docker logs --tail 40 $CONTAINER_NAME" 2>&1 | sed 's/^/    /' || true
   return 1
 }
 
@@ -851,15 +985,21 @@ vllm_alive() {
 
 wait_for_models() {
   local i elapsed=0 max_s=$((MAX_BOOT_ATTEMPTS * BOOT_POLL_INTERVAL))
-  vlog "waiting for /v1/models (timeout ${max_s}s) …"
+  local est_min=15 max_min=$(( (max_s + 59) / 60 ))
+  vlog "waiting for /v1/models (timeout ~${max_min} min) …"
+  # One-shot notice — shard progress is already in vllm.log / docker logs.
+  printf '%s%s[%s]%s %s%snotice%s  This could take a while (~%s min typical for weight load + KV profile; timeout ~%s min).\n' \
+    "$C_DIM" "$C_BOLD" "$(_ts)" "$C_RESET" "$C_YELLOW" "$C_BOLD" "$C_RESET" "$est_min" "$max_min"
   for i in $(seq 1 "$MAX_BOOT_ATTEMPTS"); do
     local resp
     resp=$(curl -sS --max-time 5 "http://$HEAD_IP:$VLLM_PORT/v1/models" 2>/dev/null || true)
     if echo "$resp" | grep -q "$SERVED_MODEL_NAME"; then
+      [[ -t 1 ]] && printf '\n'
       ok "model live after ${elapsed}s · $SERVED_MODEL_NAME"
       return 0
     fi
     if ! vllm_alive; then
+      [[ -t 1 ]] && printf '\n'
       err "vLLM process died while booting — last log lines:"
       tail -n 30 "$VLLM_LOG" 2>/dev/null | sed 's/^/    /'
       return 1
@@ -873,7 +1013,7 @@ wait_for_models() {
     fi
     if [ $((elapsed % 60)) -eq 0 ]; then
       [[ -t 1 ]] && printf '\n'
-      vlog "still loading weights / profiling (${elapsed}s) — log:"
+      vlog "still loading (${elapsed}s) — log:"
       tail -n 2 "$VLLM_LOG" 2>/dev/null | sed 's/^/    /' || true
     fi
   done
