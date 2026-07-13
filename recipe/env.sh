@@ -46,8 +46,9 @@ export RAY_TMPDIR="${RAY_TMPDIR:-/dev/shm/ray}"
 export VLLM_ALLOW_LONG_MAX_MODEL_LEN=1
 export VLLM_NVFP4_GEMM_BACKEND=flashinfer-cutlass
 export VLLM_USE_FLASHINFER_MOE_FP4=1
-# CLI --moe-backend choices: flashinfer_cutlass|auto|triton|...  (NOT "throughput")
-export VLLM_FLASHINFER_MOE_BACKEND=flashinfer_cutlass
+# Env var for FlashInfer MoE path (NOT the same as CLI --moe-backend).
+export VLLM_FLASHINFER_MOE_BACKEND=throughput
+# CLI --moe-backend choices: flashinfer_cutlass|auto|triton|...
 export MOE_BACKEND="${MOE_BACKEND:-flashinfer_cutlass}"
 export VLLM_NVFP4_INLINE=1
 export VLLM_WMMA_DECODE=1

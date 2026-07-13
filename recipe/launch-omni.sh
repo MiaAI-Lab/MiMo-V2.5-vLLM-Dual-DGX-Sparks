@@ -29,7 +29,7 @@ exec vllm serve "${MODEL_PATH}" \
   --limit-mm-per-prompt '{"image":4,"video":1,"audio":1}' \
   --mm-encoder-tp-mode data \
   --attention-backend triton_attn_diffkv \
-  --moe-backend "${MOE_BACKEND:-${VLLM_FLASHINFER_MOE_BACKEND:-flashinfer_cutlass}}" \
+  --moe-backend "${MOE_BACKEND:-flashinfer_cutlass}" \
   --kv-cache-dtype nvfp4 \
   --gpu-memory-utilization "${GPU_MEMORY_UTILIZATION:-0.83}" \
   --max-model-len "${MAX_MODEL_LEN:-1000000}" \
