@@ -530,38 +530,42 @@ precheck() {
 }
 
 ###############################################################################
-# Container + overlay image. Replicates recipe/run-container.sh and adds the two
-# model bind mounts (the repo's run-container.sh only mounts HF_CACHE + recipe).
-# Overlay = base + qwen3_dflash.py + dflash_proposer.py + patch_mimo_v2_eagle3.py
-# (builds from patches/Dockerfile). The 6 base mods are baked into the base image;
-# recipe/mods/ is absent from the repo, so apply-mods is skipped (verified at launch).
+# Runtime image. Prefer pulling the published GHCR image (~20GB); fall back to
+# building the local patches/Dockerfile overlay from BASE_IMAGE if pull fails.
 ###############################################################################
 ensure_image_head() {
-  hlog "ensuring overlay image on head"
-  if ! docker image inspect "$OVERLAY_TAG" >/dev/null 2>&1; then
-    if ! docker image inspect "$BASE_TAG" >/dev/null 2>&1; then
-      hlog "pulling $BASE_IMAGE (~20GB) ..."
-      docker pull "$BASE_IMAGE"
-      docker tag "$BASE_IMAGE" "$BASE_TAG"
-    fi
-    hlog "building overlay $OVERLAY_TAG from patches/Dockerfile"
-    docker build -t "$OVERLAY_TAG" -f "$REPO_DIR/patches/Dockerfile" "$REPO_DIR/patches"
+  hlog "ensuring runtime image on head: $OVERLAY_TAG"
+  if docker image inspect "$OVERLAY_TAG" >/dev/null 2>&1; then
+    hlog "image already present"
+    return 0
   fi
+  hlog "pulling $OVERLAY_TAG (~20GB) ..."
+  if docker pull "$OVERLAY_TAG"; then
+    hlog "image ready: $OVERLAY_TAG"
+    return 0
+  fi
+  hlog "pull failed — building overlay from $BASE_IMAGE"
+  if ! docker image inspect "$BASE_TAG" >/dev/null 2>&1; then
+    docker pull "$BASE_IMAGE"
+    docker tag "$BASE_IMAGE" "$BASE_TAG"
+  fi
+  docker build -t "$OVERLAY_TAG" -f "$REPO_DIR/patches/Dockerfile" "$REPO_DIR/patches"
   hlog "overlay image ready: $OVERLAY_TAG"
 }
 
 ensure_image_worker() {
-  wlog "ensuring overlay image on worker"
+  wlog "ensuring runtime image on worker: $OVERLAY_TAG"
   local ctx="$WORKER_REPO_DIR/patches"
   sshw "
     set -e
-    if docker image inspect '$OVERLAY_TAG' >/dev/null 2>&1; then echo 'overlay present'; exit 0; fi
+    if docker image inspect '$OVERLAY_TAG' >/dev/null 2>&1; then echo 'image present'; exit 0; fi
+    echo 'pulling $OVERLAY_TAG on worker (~20GB) ...'
+    if docker pull '$OVERLAY_TAG'; then echo 'image ready'; exit 0; fi
+    echo 'pull failed — building overlay from $BASE_IMAGE'
     if ! docker image inspect '$BASE_TAG' >/dev/null 2>&1; then
-      echo 'pulling $BASE_IMAGE on worker (~20GB) ...'
       docker pull '$BASE_IMAGE'
       docker tag '$BASE_IMAGE' '$BASE_TAG'
     fi
-    echo 'building overlay on worker'
     docker build -t '$OVERLAY_TAG' -f '$ctx/Dockerfile' '$ctx'
     echo 'overlay ready on worker'
   "
