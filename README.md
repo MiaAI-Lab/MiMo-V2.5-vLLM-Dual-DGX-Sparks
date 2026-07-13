@@ -79,15 +79,17 @@ Token speed bench (`tok.sh`) against `http://localhost:8888/v1/chat/completions`
 | Runs per level | equal to concurrency |
 | Shape | GMU **0.83** · MTP1 · NVFP4-KV · `enforce_eager` |
 
-### Results by concurrency
+### Comparison (`tok.sh`)
 
-| Conc | Runs | Gen tok/s (mean) | E2E tok/s (mean) | Wall (s) | Tokens |
-|---:|---:|---:|---:|---:|---:|
-| **1** | 1 | **30.00** | **31.09** | 26.63 | 828 |
-| 2 | 2 | 25.77 | 26.71 | 47.73 | 1,989 |
-| 3 | 3 | 21.85 | 22.53 | 60.53 | 3,398 |
+Per-run **mean Gen / E2E tok/s** (what the tool prints), plus **cumulative tok/s** = total tokens ÷ wall clock for that concurrency level:
 
-Best single-stream: **30.00 gen tok/s** / **31.09 E2E tok/s**. Tony’s published Omni MTP1 reference (GMU 0.84 / seqs=8) is ~**31.9–32.1** single-stream.
+| Conc | Runs | Gen tok/s | E2E tok/s | Wall (s) | Tokens | Cumulative tok/s |
+|---:|---:|---:|---:|---:|---:|---:|
+| **1** | 1 | **30.00** | **31.09** | 26.63 | 828 | **31.09** |
+| 2 | 2 | 25.77 | 26.71 | 47.73 | 1,989 | **41.67** |
+| 3 | 3 | 21.85 | 22.53 | 60.53 | 3,398 | **56.14** |
+
+Best single-stream: **30.00 gen tok/s** / **31.09 E2E**. Peak shared throughput on this shape: **~56 tok/s cumulative @ C3**. Tony’s published Omni MTP1 reference (GMU 0.84 / seqs=8) is ~**31.9–32.1** single-stream.
 
 ---
 
@@ -367,7 +369,7 @@ Ray object store is capped at **1 GiB** per node; `RAY_TMPDIR` defaults to `/d
 3. Keep **NCCL LL + 2 channels** on the Spark interconnect.  
 4. **First token after load is slow** — expected. This recipe uses `--enforce-eager` (no CUDA graphs) for 1M + NVFP4-KV + MTP stability, plus cold Triton/FlashInfer warmup and a full prompt prefill over TP=2/RoCE before any output token. Later requests on a warm engine are much snappier; MTP helps decode tok/s more than TTFT.
 
-Validated Omni MTP1 on **this** pair (2026-07-14, `tok.sh`): **30.00 gen / 31.09 E2E tok/s** @ C1; ~**25.8 / 26.7** @ C2; ~**21.9 / 22.5** @ C3. Tony’s published C8/GMU0.84 reference is ~**31.9–32.1** single-stream — see [Performance](#performance-this-pair--2026-07-14).
+Validated Omni MTP1 on **this** pair (2026-07-14, `tok.sh`): **30.00 gen / 31.09 E2E** @ C1; cumulative **~41.7 tok/s** @ C2 / **~56.1 tok/s** @ C3 (tokens ÷ wall). Tony’s published reference is ~**31.9–32.1** single-stream — see [Performance](#performance-this-pair--2026-07-14).
 
 ---
 
