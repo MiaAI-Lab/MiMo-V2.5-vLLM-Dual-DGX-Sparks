@@ -79,7 +79,7 @@ Token speed bench (`tok.sh`) against `http://localhost:8888/v1/chat/completions`
 | Runs per level | equal to concurrency |
 | Shape | GMU **0.83** · MTP1 · NVFP4-KV · `enforce_eager` |
 
-### Comparison (`tok.sh`)
+### Comparison
 
 Per-run **mean Gen / E2E tok/s** (what the tool prints), plus **cumulative tok/s** = total tokens ÷ wall clock for that concurrency level:
 
