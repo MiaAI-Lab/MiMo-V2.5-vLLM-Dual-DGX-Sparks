@@ -67,31 +67,27 @@ Maximum concurrency for 1,000,000 tokens per request: 2.70x
 
 ---
 
-## Performance (this pair · 2026-07-13)
+## Performance (this pair · 2026-07-14)
 
-Live bench against `http://10.0.0.1:8888/v1` after Omni MTP1 bring-up.
+Token speed bench (`tok.sh`) against `http://localhost:8888/v1/chat/completions` after Omni MTP1 bring-up.
 
-Shape: **GMU 0.83 · `max_num_seqs=3` · MTP1 · NVFP4-KV · `enforce_eager` · thinking OFF · `repetition_penalty=1.0`**.
+| Setting | Value |
+|---|---|
+| Max tokens | 1500 |
+| Temperature / top_p | 0.0 / 1.0 |
+| Concurrency | 1, 2, 3 (= `max_num_seqs`) |
+| Runs per level | equal to concurrency |
+| Shape | GMU **0.83** · MTP1 · NVFP4-KV · `enforce_eager` |
 
-### Single-stream decode (`ignore_eos`, forced length)
+### Results by concurrency
 
-| Output tokens | server tok/s | acceptance |
-|---:|---:|---:|
-| 512 | **29.86** | 0.790 |
-| 1024 | **29.35** | 0.752 |
-| 2048 | **30.11** | 0.811 |
+| Conc | Runs | Gen tok/s (mean) | E2E tok/s (mean) | Wall (s) | Tokens |
+|---:|---:|---:|---:|---:|---:|
+| **1** | 1 | **30.00** | **31.09** | 26.63 | 828 |
+| 2 | 2 | 25.77 | 26.71 | 47.73 | 1,989 |
+| 3 | 3 | 21.85 | 22.53 | 60.53 | 3,398 |
 
-≈ **29.4–30.1 tok/s** single-stream on this pair (Tony’s published Omni MTP1 C8/GMU0.84 reference is ~**31.9–32.1**).
-
-### Static concurrency (`max_tokens=256`)
-
-Only **C1–C3** — matches `max_num_seqs=3`. Short-request wall tok/s (includes prefill); longer single-stream decode is ~29–30 above.
-
-| concurrency | aggregate tok/s | derived tok/s / stream | acceptance |
-|---:|---:|---:|---:|
-| 1 | 22.71 | 22.71 | 0.747 |
-| 2 | 36.69 | 18.34 | 0.777 |
-| **3** | **54.55** | **18.18** | **0.800** |
+Best single-stream: **30.00 gen tok/s** / **31.09 E2E tok/s**. Tony’s published Omni MTP1 reference (GMU 0.84 / seqs=8) is ~**31.9–32.1** single-stream.
 
 ---
 
@@ -371,7 +367,7 @@ Ray object store is capped at **1 GiB** per node; `RAY_TMPDIR` defaults to `/d
 3. Keep **NCCL LL + 2 channels** on the Spark interconnect.  
 4. **First token after load is slow** — expected. This recipe uses `--enforce-eager` (no CUDA graphs) for 1M + NVFP4-KV + MTP stability, plus cold Triton/FlashInfer warmup and a full prompt prefill over TP=2/RoCE before any output token. Later requests on a warm engine are much snappier; MTP helps decode tok/s more than TTFT.
 
-Validated Omni MTP1 on **this** pair (2026-07-13): ~**29.4–30.1 tok/s** single-stream; peak aggregate **54.6 tok/s** at C3 (`max_num_seqs=3`). Tony’s published C8/GMU0.84 reference is ~**31.9–32.1** / **184** C8 — see [Performance](#performance-this-pair--2026-07-13).
+Validated Omni MTP1 on **this** pair (2026-07-14, `tok.sh`): **30.00 gen / 31.09 E2E tok/s** @ C1; ~**25.8 / 26.7** @ C2; ~**21.9 / 22.5** @ C3. Tony’s published C8/GMU0.84 reference is ~**31.9–32.1** single-stream — see [Performance](#performance-this-pair--2026-07-14).
 
 ---
 
