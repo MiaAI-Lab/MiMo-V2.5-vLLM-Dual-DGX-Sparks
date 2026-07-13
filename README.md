@@ -301,6 +301,8 @@ Applied at bring-up (idempotent). Especially useful for the NVFP4-KV lane:
 ├── start.sh                 # full two-node Omni bring-up + verify
 ├── stop.sh                  # stop serve + containers
 ├── .gitignore
+├── assets/
+│   └── mimo.jpg             # README hero
 ├── examples/
 │   └── omp-models.snippet.yml  # OMP / agent client snippet
 ├── recipe/
