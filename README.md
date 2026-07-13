@@ -69,7 +69,7 @@ Maximum concurrency for 1,000,000 tokens per request: 2.70x
 
 ## Performance (this pair · 2026-07-13)
 
-Live bench against `http://10.0.0.1:8888/v1` after Omni MTP1 bring-up. Script: [`benchmarks/perf_bench.py`](benchmarks/perf_bench.py). Raw JSON: [`benchmarks/perf_20260713.json`](benchmarks/perf_20260713.json).
+Live bench against `http://10.0.0.1:8888/v1` after Omni MTP1 bring-up.
 
 Shape: **GMU 0.83 · `max_num_seqs=3` · MTP1 · NVFP4-KV · `enforce_eager` · thinking OFF · `repetition_penalty=1.0`**.
 
@@ -85,19 +85,13 @@ Shape: **GMU 0.83 · `max_num_seqs=3` · MTP1 · NVFP4-KV · `enforce_eager` · 
 
 ### Static concurrency (`max_tokens=256`)
 
-Only **C1–C3** — matches `max_num_seqs=3`.
+Only **C1–C3** — matches `max_num_seqs=3`. Short-request wall tok/s (includes prefill); longer single-stream decode is ~29–30 above.
 
 | concurrency | aggregate tok/s | derived tok/s / stream | acceptance |
 |---:|---:|---:|---:|
 | 1 | 22.71 | 22.71 | 0.747 |
 | 2 | 36.69 | 18.34 | 0.777 |
 | **3** | **54.55** | **18.18** | **0.800** |
-
-Re-run:
-
-```bash
-MIMO_BASE_URL=http://10.0.0.1:8888/v1 python3 benchmarks/perf_bench.py
-```
 
 ---
 
@@ -339,9 +333,6 @@ Applied at bring-up (idempotent). Especially useful for the NVFP4-KV lane:
 ├── .gitignore
 ├── assets/
 │   └── mimo.jpg             # README hero
-├── benchmarks/
-│   ├── perf_bench.py        # single-stream + concurrency bench
-│   └── perf_20260713.json   # measured results (this pair)
 ├── examples/
 │   └── omp-models.snippet.yml  # OMP / agent client snippet
 ├── recipe/
