@@ -1,0 +1,14 @@
+# Runtime / local
+vllm.log
+retry.log
+start-run.log
+last-config.txt
+*.pyc
+__pycache__/
+.DS_Store
+vllm/
+
+# Local HF weight caches if someone drops them in-tree
+models--*/
+.cache/
+.git/
