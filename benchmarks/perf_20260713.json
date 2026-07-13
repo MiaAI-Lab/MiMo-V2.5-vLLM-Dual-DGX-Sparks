@@ -1,0 +1,360 @@
+{
+  "when": "2026-07-13T21:03:28.612911+00:00",
+  "base_url": "http://10.0.0.1:8888/v1",
+  "model": "MiMo-V2.5-NVFP4",
+  "shape_note": "server defaults: max_num_seqs=3, GMU=0.83, max_model_len=1M, MTP1, nvfp4 KV",
+  "single_stream": [
+    {
+      "id": 1,
+      "seconds": 17.891,
+      "prompt_tokens": 775,
+      "completion_tokens": 501,
+      "tok_s": 28.0,
+      "finish_reason": "stop",
+      "sample": "# Practical Agent Implementation Note  ## Architecture Overview  An agent is a loop that observes, decides, and acts. The core cycle is: **Perceive \u2192 Think \u2192 Ac",
+      "acceptance": 0.767,
+      "max_tokens": 512
+    },
+    {
+      "id": 1,
+      "seconds": 16.638,
+      "prompt_tokens": 856,
+      "completion_tokens": 468,
+      "tok_s": 28.13,
+      "finish_reason": "stop",
+      "sample": "# Practical Agent Implementation Note  ## Overview  This document outlines a practical approach to building an autonomous agent system. The design prioritizes m",
+      "acceptance": 0.81,
+      "max_tokens": 1024
+    },
+    {
+      "id": 1,
+      "seconds": 17.589,
+      "prompt_tokens": 856,
+      "completion_tokens": 493,
+      "tok_s": 28.03,
+      "finish_reason": "stop",
+      "sample": "# Practical Agent Implementation Note  ## Overview  This document outlines a practical implementation pattern for building a functional AI agent system. The des",
+      "acceptance": 0.783,
+      "max_tokens": 2048
+    }
+  ],
+  "concurrency": [
+    {
+      "concurrency": 1,
+      "max_tokens": 256,
+      "wall_seconds": 11.272,
+      "completion_tokens": 256,
+      "aggregate_tok_s": 22.71,
+      "per_stream_tok_s_mean": 22.71,
+      "per_stream_derived": 22.71,
+      "acceptance": 0.747,
+      "detail": [
+        {
+          "id": 0,
+          "seconds": 11.271,
+          "prompt_tokens": 2472,
+          "completion_tokens": 256,
+          "tok_s": 22.71,
+          "finish_reason": "length",
+          "sample": "# Practical Agent Implementation Note  ## Architecture Overview  An agent is a system that perceives its environment, reasons about goals, and takes actions to "
+        }
+      ]
+    },
+    {
+      "concurrency": 2,
+      "max_tokens": 256,
+      "wall_seconds": 13.953,
+      "completion_tokens": 512,
+      "aggregate_tok_s": 36.69,
+      "per_stream_tok_s_mean": 18.52,
+      "per_stream_derived": 18.34,
+      "acceptance": 0.777,
+      "detail": [
+        {
+          "id": 0,
+          "seconds": 13.701,
+          "prompt_tokens": 2472,
+          "completion_tokens": 256,
+          "tok_s": 18.68,
+          "finish_reason": "length",
+          "sample": "# Practical Agent Implementation Note  ## Architecture Overview  An agent is a system that perceives its environment, reasons about goals, and takes actions to "
+        },
+        {
+          "id": 1,
+          "seconds": 13.952,
+          "prompt_tokens": 2472,
+          "completion_tokens": 256,
+          "tok_s": 18.35,
+          "finish_reason": "length",
+          "sample": "# Practical Agent Implementation Note  ## Architecture Overview  An agent is a system that perceives its environment, reasons about goals, and takes actions to "
+        }
+      ]
+    },
+    {
+      "concurrency": 3,
+      "max_tokens": 256,
+      "wall_seconds": 14.079,
+      "completion_tokens": 768,
+      "aggregate_tok_s": 54.55,
+      "per_stream_tok_s_mean": 18.31,
+      "per_stream_derived": 18.18,
+      "acceptance": 0.8,
+      "detail": [
+        {
+          "id": 0,
+          "seconds": 13.856,
+          "prompt_tokens": 2472,
+          "completion_tokens": 256,
+          "tok_s": 18.48,
+          "finish_reason": "length",
+          "sample": "# Practical Agent Implementation Note  ## Architecture Overview  An agent is a system that perceives its environment, reasons about goals, and takes actions to "
+        },
+        {
+          "id": 1,
+          "seconds": 14.078,
+          "prompt_tokens": 2472,
+          "completion_tokens": 256,
+          "tok_s": 18.18,
+          "finish_reason": "length",
+          "sample": "# Practical Agent Implementation Note  ## Architecture Overview  An agent is a system that perceives its environment, reasons about goals, and takes actions to "
+        },
+        {
+          "id": 2,
+          "seconds": 14.012,
+          "prompt_tokens": 2472,
+          "completion_tokens": 256,
+          "tok_s": 18.27,
+          "finish_reason": "length",
+          "sample": "# Practical Agent Implementation Note  ## Architecture Overview  An agent is a system that perceives its environment, reasons about goals, and takes actions to "
+        }
+      ]
+    },
+    {
+      "concurrency": 4,
+      "max_tokens": 256,
+      "wall_seconds": 24.333,
+      "completion_tokens": 1024,
+      "aggregate_tok_s": 42.08,
+      "per_stream_tok_s_mean": 15.2,
+      "per_stream_derived": 10.52,
+      "acceptance": 0.772,
+      "detail": [
+        {
+          "id": 0,
+          "seconds": 15.221,
+          "prompt_tokens": 2472,
+          "completion_tokens": 256,
+          "tok_s": 16.82,
+          "finish_reason": "length",
+          "sample": "# Practical Agent Implementation Note  ## Architecture Overview  An agent is a loop that observes, reasons, and acts. The core pattern is simple: receive input,"
+        },
+        {
+          "id": 1,
+          "seconds": 14.854,
+          "prompt_tokens": 2472,
+          "completion_tokens": 256,
+          "tok_s": 17.23,
+          "finish_reason": "length",
+          "sample": "# Practical Agent Implementation Note  ## Architecture Overview  An agent is a system that perceives its environment, reasons about goals, and takes actions to "
+        },
+        {
+          "id": 2,
+          "seconds": 24.331,
+          "prompt_tokens": 2472,
+          "completion_tokens": 256,
+          "tok_s": 10.52,
+          "finish_reason": "length",
+          "sample": "# Practical Agent Implementation Note  ## Architecture Overview  An agent is a system that perceives its environment, reasons about goals, and takes actions to "
+        },
+        {
+          "id": 3,
+          "seconds": 15.785,
+          "prompt_tokens": 2472,
+          "completion_tokens": 256,
+          "tok_s": 16.22,
+          "finish_reason": "length",
+          "sample": "# Practical Agent Implementation Note  ## Architecture Overview  An agent is a system that perceives its environment, reasons about goals, and takes actions to "
+        }
+      ]
+    },
+    {
+      "concurrency": 6,
+      "max_tokens": 256,
+      "wall_seconds": 30.16,
+      "completion_tokens": 1536,
+      "aggregate_tok_s": 50.93,
+      "per_stream_tok_s_mean": 12.95,
+      "per_stream_derived": 8.49,
+      "acceptance": 0.758,
+      "detail": [
+        {
+          "id": 0,
+          "seconds": 16.374,
+          "prompt_tokens": 2472,
+          "completion_tokens": 256,
+          "tok_s": 15.63,
+          "finish_reason": "length",
+          "sample": "# Practical Agent Implementation Note  ## Architecture Overview  An agent is a system that perceives its environment, reasons about goals, and takes actions to "
+        },
+        {
+          "id": 1,
+          "seconds": 15.044,
+          "prompt_tokens": 2472,
+          "completion_tokens": 256,
+          "tok_s": 17.02,
+          "finish_reason": "length",
+          "sample": "# Practical Agent Implementation Note  ## Architecture Overview  An agent is a system that perceives its environment, reasons about goals, and takes actions to "
+        },
+        {
+          "id": 2,
+          "seconds": 13.196,
+          "prompt_tokens": 2472,
+          "completion_tokens": 256,
+          "tok_s": 19.4,
+          "finish_reason": "length",
+          "sample": "# Practical Agent Implementation Note  ## Architecture Overview  An agent is a system that perceives its environment, reasons about goals, and takes actions to "
+        },
+        {
+          "id": 3,
+          "seconds": 30.03,
+          "prompt_tokens": 2472,
+          "completion_tokens": 256,
+          "tok_s": 8.52,
+          "finish_reason": "length",
+          "sample": "# Practical Agent Implementation Note  ## Architecture Overview  An agent is a system that perceives its environment, reasons about goals, and takes actions to "
+        },
+        {
+          "id": 4,
+          "seconds": 30.158,
+          "prompt_tokens": 2472,
+          "completion_tokens": 256,
+          "tok_s": 8.49,
+          "finish_reason": "length",
+          "sample": "# Practical Agent Implementation Note  ## Overview  This document outlines a practical approach to building an autonomous agent system. The focus is on real-wor"
+        },
+        {
+          "id": 5,
+          "seconds": 29.632,
+          "prompt_tokens": 2472,
+          "completion_tokens": 256,
+          "tok_s": 8.64,
+          "finish_reason": "length",
+          "sample": "# Practical Agent Implementation Note  ## Architecture Overview  An agent is a system that perceives its environment, reasons about goals, and takes actions to "
+        }
+      ]
+    },
+    {
+      "concurrency": 8,
+      "max_tokens": 256,
+      "wall_seconds": 42.105,
+      "completion_tokens": 2048,
+      "aggregate_tok_s": 48.64,
+      "per_stream_tok_s_mean": 12.13,
+      "per_stream_derived": 6.08,
+      "acceptance": 0.764,
+      "detail": [
+        {
+          "id": 0,
+          "seconds": 12.472,
+          "prompt_tokens": 2472,
+          "completion_tokens": 256,
+          "tok_s": 20.53,
+          "finish_reason": "length",
+          "sample": "# Practical Agent Implementation Note  ## Architecture Overview  An agent is a system that perceives its environment, reasons about goals, and takes actions to "
+        },
+        {
+          "id": 1,
+          "seconds": 13.846,
+          "prompt_tokens": 2472,
+          "completion_tokens": 256,
+          "tok_s": 18.49,
+          "finish_reason": "length",
+          "sample": "# Practical Agent Implementation Note  ## Architecture Overview  An agent is a system that perceives its environment, reasons about goals, and takes actions to "
+        },
+        {
+          "id": 2,
+          "seconds": 13.476,
+          "prompt_tokens": 2472,
+          "completion_tokens": 256,
+          "tok_s": 19.0,
+          "finish_reason": "length",
+          "sample": "# Practical Agent Implementation Note  ## Architecture Overview  An agent is a system that perceives its environment, reasons about goals, and takes actions to "
+        },
+        {
+          "id": 3,
+          "seconds": 26.51,
+          "prompt_tokens": 2472,
+          "completion_tokens": 256,
+          "tok_s": 9.66,
+          "finish_reason": "length",
+          "sample": "# Practical Agent Implementation Note  ## Architecture Overview  An agent is a system that perceives its environment, reasons about goals, and takes actions to "
+        },
+        {
+          "id": 4,
+          "seconds": 28.751,
+          "prompt_tokens": 2472,
+          "completion_tokens": 256,
+          "tok_s": 8.9,
+          "finish_reason": "length",
+          "sample": "# Practical Agent Implementation Note  ## Overview  This document outlines a practical approach to building a functional agent system. The focus is on clarity, "
+        },
+        {
+          "id": 5,
+          "seconds": 31.241,
+          "prompt_tokens": 2472,
+          "completion_tokens": 256,
+          "tok_s": 8.19,
+          "finish_reason": "length",
+          "sample": "Practical Agent Implementation Note  Goal Build a reliable, observable, and safe agent that turns user intent into actions and returns clear results.  Core loop"
+        },
+        {
+          "id": 6,
+          "seconds": 41.526,
+          "prompt_tokens": 2472,
+          "completion_tokens": 256,
+          "tok_s": 6.16,
+          "finish_reason": "length",
+          "sample": "# Practical Agent Implementation Note  ## Architecture Overview  An agent is a system that perceives its environment, reasons about goals, and takes actions to "
+        },
+        {
+          "id": 7,
+          "seconds": 42.102,
+          "prompt_tokens": 2472,
+          "completion_tokens": 256,
+          "tok_s": 6.08,
+          "finish_reason": "length",
+          "sample": "# Practical Agent Implementation Note  ## Architecture Overview  An agent is a system that perceives its environment, reasons about goals, and takes actions to "
+        }
+      ]
+    }
+  ],
+  "when_single_forced": "2026-07-13T21:07:50.462445+00:00",
+  "single_stream_forced_length": [
+    {
+      "max_tokens": 512,
+      "completion_tokens": 512,
+      "seconds": 17.149,
+      "tok_s": 29.86,
+      "finish_reason": "length",
+      "acceptance": 0.79
+    },
+    {
+      "max_tokens": 1024,
+      "completion_tokens": 1024,
+      "seconds": 34.895,
+      "tok_s": 29.35,
+      "finish_reason": "length",
+      "acceptance": 0.752
+    },
+    {
+      "max_tokens": 2048,
+      "completion_tokens": 2048,
+      "seconds": 68.01,
+      "tok_s": 30.11,
+      "finish_reason": "length",
+      "acceptance": 0.811
+    }
+  ],
+  "kv_pool_tokens": 2704932,
+  "kv_concurrency_at_1m": 2.7
+}

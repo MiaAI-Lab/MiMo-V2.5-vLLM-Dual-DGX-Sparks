@@ -37,17 +37,17 @@ This tree is **Omni only** — no DFlash lane.
 
 `max_num_seqs=3` and `max_model_len=1M` do **not** reserve 3×1M in VRAM. The engine shares one KV token pool across live requests.
 
-Measured at boot on this 2× Spark pair (Omni MTP1 @ GMU **0.83**, `max_model_len=1_000_000`):
+Measured at boot on this 2× Spark pair (Omni MTP1 @ GMU **0.83**, `max_model_len=1_000_000`, `max_num_seqs=3`):
 
 | Log line | Value |
 |---|---|
-| Available KV cache memory (head / worker) | **15.65 GiB** / **7.74 GiB** |
-| **GPU KV cache size** (engine pool) | **2,508,512 tokens** |
-| Implied concurrency @ 1M / request | **~2.51×** |
+| Available KV cache memory (head / worker) | **15.2 GiB** / **8.35 GiB** |
+| **GPU KV cache size** (engine pool) | **2,704,932 tokens** |
+| Implied concurrency @ 1M / request | **~2.70×** |
 
 ```text
 3 × 1,000,000 = 3,000,000 tokens needed for three full-1M streams
-pool          = 2,508,512 tokens available
+pool          = 2,704,932 tokens available
 → only ~2 full-1M streams fit; a 3rd deep 1M waits (queues) until KV frees
 ```
 
@@ -55,14 +55,51 @@ Practical reading:
 
 - **2 agents at full 1M** — fits.  
 - **3 agents at full 1M** — third scheduled but **blocked/queued** on KV.  
-- **3 agents at moderate depth** — all run if total KV ≤ ~2.51M.  
+- **3 agents at moderate depth** — all run if total KV ≤ ~2.70M.  
 
 Confirm live numbers in `vllm.log` after launch:
 
 ```text
 Available KV cache memory: …
-GPU KV cache size: 2,508,512 tokens
-Maximum concurrency for 1,000,000 tokens per request: 2.51x
+GPU KV cache size: 2,704,932 tokens
+Maximum concurrency for 1,000,000 tokens per request: 2.70x
+```
+
+---
+
+## Performance (this pair · 2026-07-13)
+
+Live bench against `http://10.0.0.1:8888/v1` after Omni MTP1 bring-up. Script: [`benchmarks/perf_bench.py`](benchmarks/perf_bench.py). Raw JSON: [`benchmarks/perf_20260713.json`](benchmarks/perf_20260713.json).
+
+Shape: **GMU 0.83 · `max_num_seqs=3` · MTP1 · NVFP4-KV · `enforce_eager` · thinking OFF · `repetition_penalty=1.0`**.
+
+### Single-stream decode (`ignore_eos`, forced length)
+
+| Output tokens | server tok/s | acceptance |
+|---:|---:|---:|
+| 512 | **29.86** | 0.790 |
+| 1024 | **29.35** | 0.752 |
+| 2048 | **30.11** | 0.811 |
+
+≈ **29.4–30.1 tok/s** single-stream on this pair (Tony’s published Omni MTP1 C8/GMU0.84 reference is ~**31.9–32.1**).
+
+### Static concurrency (`max_tokens=256`)
+
+Peak aggregate is at **C3** (our schedule cap). C4+ queues behind `max_num_seqs=3`.
+
+| concurrency | aggregate tok/s | derived tok/s / stream | acceptance |
+|---:|---:|---:|---:|
+| 1 | 22.71 | 22.71 | 0.747 |
+| 2 | 36.69 | 18.34 | 0.777 |
+| **3** | **54.55** | **18.18** | **0.800** |
+| 4 | 42.08 | 10.52 | 0.772 |
+| 6 | 50.93 | 8.49 | 0.758 |
+| 8 | 48.64 | 6.08 | 0.764 |
+
+Re-run:
+
+```bash
+MIMO_BASE_URL=http://10.0.0.1:8888/v1 python3 benchmarks/perf_bench.py
 ```
 
 ---
@@ -77,6 +114,7 @@ Maximum concurrency for 1,000,000 tokens per request: 2.51x
 - Docker + NVIDIA Container Toolkit on **both** nodes  
 - Passwordless SSH from head → worker  
 - Weights readable on both nodes (local HF hub preferred)
+
 
 ---
 
@@ -304,6 +342,9 @@ Applied at bring-up (idempotent). Especially useful for the NVFP4-KV lane:
 ├── .gitignore
 ├── assets/
 │   └── mimo.jpg             # README hero
+├── benchmarks/
+│   ├── perf_bench.py        # single-stream + concurrency bench
+│   └── perf_20260713.json   # measured results (this pair)
 ├── examples/
 │   └── omp-models.snippet.yml  # OMP / agent client snippet
 ├── recipe/
@@ -342,7 +383,7 @@ Ray object store is capped at **1 GiB** per node; `RAY_TMPDIR` defaults to `/d
 3. Keep **NCCL LL + 2 channels** on the Spark interconnect.  
 4. **First token after load is slow** — expected. This recipe uses `--enforce-eager` (no CUDA graphs) for 1M + NVFP4-KV + MTP stability, plus cold Triton/FlashInfer warmup and a full prompt prefill over TP=2/RoCE before any output token. Later requests on a warm engine are much snappier; MTP helps decode tok/s more than TTFT.
 
-Validated Omni MTP1 reference on this stack: ~**31–32 tok/s** (not DFlash’s ~38).
+Validated Omni MTP1 on **this** pair (2026-07-13): ~**29.4–30.1 tok/s** single-stream; peak aggregate **54.6 tok/s** at C3 (`max_num_seqs=3`). Tony’s published C8/GMU0.84 reference is ~**31.9–32.1** / **184** C8 — see [Performance](#performance-this-pair--2026-07-13).
 
 ---
 

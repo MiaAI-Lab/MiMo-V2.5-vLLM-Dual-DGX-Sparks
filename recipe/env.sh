@@ -11,7 +11,7 @@
 export LOAD_FORMAT=safetensors          # NOT instanttensor (it wedges the MTP+NVFP4-KV 2nd load)
 export MAX_MODEL_LEN=1000000
 export MAX_NUM_BATCHED_TOKENS=2048
-export MAX_NUM_SEQS=3                   # schedule cap; KV pool (~2.5M) ≈ 2.5× full-1M
+export MAX_NUM_SEQS=3                   # schedule cap; KV pool (~2.7M) ≈ 2.7× full-1M
 export BLOCK_SIZE=64
 export GPU_MEMORY_UTILIZATION=0.83      # 0.84 OOMed ~40MiB on this pair @ 1M Omni; 0.83 validated
 export ENABLE_MTP=1
