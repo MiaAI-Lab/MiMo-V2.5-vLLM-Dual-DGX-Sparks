@@ -26,7 +26,7 @@ BASE_URL = os.environ.get("MIMO_BASE_URL", "http://10.0.0.1:8888/v1").rstrip("/"
 MODEL = os.environ.get("MIMO_MODEL", "MiMo-V2.5-NVFP4")
 SINGLE_LENS = [int(x) for x in os.environ.get("SINGLE_LENS", "512,1024,2048").split(",") if x.strip()]
 CONCURRENCY_LIST = [
-    int(x) for x in os.environ.get("CONCURRENCY", "1,2,3,4,6,8").split(",") if x.strip()
+    int(x) for x in os.environ.get("CONCURRENCY", "1,2,3").split(",") if x.strip()
 ]
 CONCUR_MAX_TOKENS = int(os.environ.get("MAX_TOKENS", "256"))
 TIMEOUT = int(os.environ.get("REQ_TIMEOUT", "900"))

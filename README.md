@@ -85,16 +85,13 @@ Shape: **GMU 0.83 · `max_num_seqs=3` · MTP1 · NVFP4-KV · `enforce_eager` · 
 
 ### Static concurrency (`max_tokens=256`)
 
-Peak aggregate is at **C3** (our schedule cap). C4+ queues behind `max_num_seqs=3`.
+Only **C1–C3** — matches `max_num_seqs=3`.
 
 | concurrency | aggregate tok/s | derived tok/s / stream | acceptance |
 |---:|---:|---:|---:|
 | 1 | 22.71 | 22.71 | 0.747 |
 | 2 | 36.69 | 18.34 | 0.777 |
 | **3** | **54.55** | **18.18** | **0.800** |
-| 4 | 42.08 | 10.52 | 0.772 |
-| 6 | 50.93 | 8.49 | 0.758 |
-| 8 | 48.64 | 6.08 | 0.764 |
 
 Re-run:
 

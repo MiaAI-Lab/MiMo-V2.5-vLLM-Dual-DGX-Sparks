@@ -16,7 +16,7 @@ export BLOCK_SIZE=64
 export GPU_MEMORY_UTILIZATION=0.83      # 0.84 OOMed ~40MiB on this pair @ 1M Omni; 0.83 validated
 export ENABLE_MTP=1
 export MTP_SPEC_TOKENS=1                # MTP1 > MTP2 here (MTP2 halves KV pool, no speed gain)
-export VLLM_MIMO_MTP1_GREEDY_FAST=1     # Current best C8 speed profile.
+export VLLM_MIMO_MTP1_GREEDY_FAST=1     # MTP1 greedy-fast path (Tony speed profile).
 export ENFORCE_EAGER=1
 
 # --- stable default sampling for direct vLLM/OpenAI calls ---
