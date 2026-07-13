@@ -389,9 +389,9 @@ Logs: host `vllm.log` (gitignored) mirrors `/workspace/vllm.log` inside the head
 
 ---
 
-## Related
+## Credits
 
-- Omni MTP1 reference: [tonyd2wild/MiMo-V2.5-TP2-1M-NVFP4-KV-2xDGX-Spark](https://github.com/tonyd2wild/MiMo-V2.5-TP2-1M-NVFP4-KV-2xDGX-Spark)
+This recipe is built on **[tonyd2wild/MiMo-V2.5-TP2-1M-NVFP4-KV-2xDGX-Spark](https://github.com/tonyd2wild/MiMo-V2.5-TP2-1M-NVFP4-KV-2xDGX-Spark)** — Tony’s Omni MTP1 + NVFP4-KV dual-DGX Spark work (vLLM mods, DiffKV path, launch shape, and published reference numbers). Mia’s tree wraps that stack in a one-script dual-node bring-up for this cluster; performance figures above are measured here and may differ from Tony’s GMU 0.84 / `max_num_seqs=8` checkpoint.
 
 ---
 
