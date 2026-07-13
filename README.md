@@ -110,6 +110,78 @@ curl http://127.0.0.1:8888/v1/chat/completions \
 
 ---
 
+## Agent clients (OMP / OpenAI-compatible)
+
+Served model id: **`MiMo-V2.5-NVFP4`**. Point agents at `http://<head>:8888/v1` (or `http://localhost:8888/v1` on the head).
+
+### Recommended request params
+
+| Param | Value | Why |
+|---|---|---|
+| `temperature` | `0` | Stable tool / agent runs |
+| `top_p` | `0.95` | Matches server generation defaults |
+| `repetition_penalty` | `1.08` | Stability default; use `1.0` only when chasing tok/s |
+| `chat_template_kwargs.enable_thinking` | `false` | Thinking-off for agents / structured work |
+| `max_tokens` | ≤ `32768` | Client cap; server context is 1M |
+
+Modalities: **text + image + video + audio**. Keep concurrent deep-1M agents ≤ **2** (KV pool ≈ 2.5×); a 3rd full-1M will queue.
+
+### OMP (`~/.omp/agent/`)
+
+**Default role** (`config.yml`):
+
+```yaml
+modelRoles:
+  default: vllm-spark1/MiMo-V2.5-NVFP4   # or mimo-local/MiMo-V2.5-NVFP4
+```
+
+**Provider + model** (merge into `models.yml`):
+
+```yaml
+providers:
+  # Head node / LAN hostname — change baseUrl to your Spark
+  vllm-spark1:
+    baseUrl: http://spark1-cx7:8888/v1   # or http://10.0.0.1:8888/v1
+    apiKey: dummy
+    api: openai-completions
+    auth: none
+    models:
+      - id: MiMo-V2.5-NVFP4
+        name: MiMo-V2.5 Omni NVFP4 (TP2 / 1M / MTP1)
+        reasoning: false
+        input: [text, image, video, audio]
+        contextWindow: 1000000
+        maxTokens: 32768
+        # pi-only: params {temperature: 0, top_p: 0.95, repetition_penalty: 1.08, chat_template_kwargs {enable_thinking: false}}
+
+  # Same process when calling from the head itself
+  mimo-local:
+    baseUrl: http://localhost:8888/v1
+    apiKey: local
+    api: openai-completions
+    auth: none
+    models:
+      - id: MiMo-V2.5-NVFP4
+        name: MiMo-V2.5 Omni NVFP4 Local
+        reasoning: false
+        input: [text, image, video, audio]
+        contextWindow: 1000000
+        maxTokens: 32768
+        # pi-only: params {temperature: 0, top_p: 0.95, repetition_penalty: 1.08, chat_template_kwargs {enable_thinking: false}}
+```
+
+A copy-paste snippet also lives at [`examples/omp-models.snippet.yml`](examples/omp-models.snippet.yml).
+
+### Generic OpenAI clients
+
+```bash
+export OPENAI_BASE_URL=http://10.0.0.1:8888/v1
+export OPENAI_API_KEY=dummy
+# model = MiMo-V2.5-NVFP4
+```
+
+---
+
 ## What `start.sh` does
 
 1. **Precheck** — GPU + SSH to worker  
@@ -193,6 +265,8 @@ Applied at bring-up (idempotent). Especially useful for the NVFP4-KV lane:
 ├── start.sh                 # full two-node Omni bring-up + verify
 ├── stop.sh                  # stop serve + containers
 ├── .gitignore
+├── examples/
+│   └── omp-models.snippet.yml  # OMP / agent client snippet
 ├── recipe/
 │   ├── env.sh               # in-container env (sourced at launch)
 │   ├── apply-mods.sh
