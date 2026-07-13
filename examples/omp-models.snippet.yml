@@ -1,9 +1,14 @@
-# OMP / Oh My Pi — recommended MiMo Omni snippet
+# OMP / Oh My Pi — MiMo-V2.5 Omni (full multimodal)
 # Merge under `providers:` in ~/.omp/agent/models.yml
-# Set default role in ~/.omp/agent/config.yml:
+#
+# Served id must match vLLM: MiMo-V2.5-NVFP4
+# Server mm limits (launch-omni.sh): image≤4, video≤1, audio≤1 per prompt
+#
+# Default role in ~/.omp/agent/config.yml:
 #   modelRoles:
 #     default: vllm-spark1/MiMo-V2.5-NVFP4
 
+  # Head / LAN — change baseUrl to your Spark hostname or IP
   vllm-spark1:
     baseUrl: http://spark1-cx7:8888/v1   # or http://10.0.0.1:8888/v1
     apiKey: dummy
@@ -11,13 +16,21 @@
     auth: none
     models:
       - id: MiMo-V2.5-NVFP4
-        name: MiMo-V2.5 Omni NVFP4 (TP2 / 1M / MTP1)
+        name: MiMo-V2.5 Omni (text+image+video+audio · TP2 / 1M / MTP1)
         reasoning: false
+        # Full Omni input modalities — do not drop video/audio
         input: [text, image, video, audio]
         contextWindow: 1000000
         maxTokens: 32768
-        # pi-only: params {temperature: 0, top_p: 0.95, repetition_penalty: 1.08, chat_template_kwargs {enable_thinking: false}}
+        # Server: --limit-mm-per-prompt {"image":4,"video":1,"audio":1}
+        # pi-only: params {
+        #   temperature: 0,
+        #   top_p: 0.95,
+        #   repetition_penalty: 1.08,
+        #   chat_template_kwargs: { enable_thinking: false }
+        # }
 
+  # Same Omni serve when OMP runs on the head box
   mimo-local:
     baseUrl: http://localhost:8888/v1
     apiKey: local
@@ -25,9 +38,15 @@
     auth: none
     models:
       - id: MiMo-V2.5-NVFP4
-        name: MiMo-V2.5 Omni NVFP4 Local
+        name: MiMo-V2.5 Omni Local (text+image+video+audio)
         reasoning: false
         input: [text, image, video, audio]
         contextWindow: 1000000
         maxTokens: 32768
-        # pi-only: params {temperature: 0, top_p: 0.95, repetition_penalty: 1.08, chat_template_kwargs {enable_thinking: false}}
+        # Server: --limit-mm-per-prompt {"image":4,"video":1,"audio":1}
+        # pi-only: params {
+        #   temperature: 0,
+        #   top_p: 0.95,
+        #   repetition_penalty: 1.08,
+        #   chat_template_kwargs: { enable_thinking: false }
+        # }

@@ -112,7 +112,28 @@ curl http://127.0.0.1:8888/v1/chat/completions \
 
 ## Agent clients (OMP / OpenAI-compatible)
 
-Served model id: **`MiMo-V2.5-NVFP4`**. Point agents at `http://<head>:8888/v1` (or `http://localhost:8888/v1` on the head).
+Served model id: **`MiMo-V2.5-NVFP4`** (`MiMoV2OmniForCausalLM`).  
+Point agents at `http://<head>:8888/v1` (or `http://localhost:8888/v1` on the head).
+
+### Omni multimodal (required in client config)
+
+This is a **full Omni** endpoint — not text-only. Advertise all four input modalities:
+
+```yaml
+input: [text, image, video, audio]
+```
+
+Server per-prompt caps (`launch-omni.sh`):
+
+| Modality | Max per prompt |
+|---|---:|
+| image | **4** |
+| video | **1** |
+| audio | **1** |
+
+(`--limit-mm-per-prompt '{"image":4,"video":1,"audio":1}'` · `--mm-encoder-tp-mode data`)
+
+If OMP/UI only lists text+image, the model entry is wrong — keep **video** and **audio** in `input:`.
 
 ### Recommended request params
 
@@ -124,7 +145,7 @@ Served model id: **`MiMo-V2.5-NVFP4`**. Point agents at `http://<head>:8888/v1` 
 | `chat_template_kwargs.enable_thinking` | `false` | Thinking-off for agents / structured work |
 | `max_tokens` | ≤ `32768` | Client cap; server context is 1M |
 
-Modalities: **text + image + video + audio**. Keep concurrent deep-1M agents ≤ **2** (KV pool ≈ 2.5×); a 3rd full-1M will queue.
+Concurrency: deep **1M** agents ≤ **2** at once (KV pool ≈ 2.5×); a 3rd full-1M queues. Multimodal tokens also consume the shared KV pool.
 
 ### OMP (`~/.omp/agent/`)
 
@@ -135,11 +156,10 @@ modelRoles:
   default: vllm-spark1/MiMo-V2.5-NVFP4   # or mimo-local/MiMo-V2.5-NVFP4
 ```
 
-**Provider + model** (merge into `models.yml`):
+**Provider + model** (merge into `models.yml` — full Omni):
 
 ```yaml
 providers:
-  # Head node / LAN hostname — change baseUrl to your Spark
   vllm-spark1:
     baseUrl: http://spark1-cx7:8888/v1   # or http://10.0.0.1:8888/v1
     apiKey: dummy
@@ -147,14 +167,14 @@ providers:
     auth: none
     models:
       - id: MiMo-V2.5-NVFP4
-        name: MiMo-V2.5 Omni NVFP4 (TP2 / 1M / MTP1)
+        name: MiMo-V2.5 Omni (text+image+video+audio · TP2 / 1M / MTP1)
         reasoning: false
         input: [text, image, video, audio]
         contextWindow: 1000000
         maxTokens: 32768
+        # Server mm: image≤4 video≤1 audio≤1
         # pi-only: params {temperature: 0, top_p: 0.95, repetition_penalty: 1.08, chat_template_kwargs {enable_thinking: false}}
 
-  # Same process when calling from the head itself
   mimo-local:
     baseUrl: http://localhost:8888/v1
     apiKey: local
@@ -162,15 +182,16 @@ providers:
     auth: none
     models:
       - id: MiMo-V2.5-NVFP4
-        name: MiMo-V2.5 Omni NVFP4 Local
+        name: MiMo-V2.5 Omni Local (text+image+video+audio)
         reasoning: false
         input: [text, image, video, audio]
         contextWindow: 1000000
         maxTokens: 32768
+        # Server mm: image≤4 video≤1 audio≤1
         # pi-only: params {temperature: 0, top_p: 0.95, repetition_penalty: 1.08, chat_template_kwargs {enable_thinking: false}}
 ```
 
-A copy-paste snippet also lives at [`examples/omp-models.snippet.yml`](examples/omp-models.snippet.yml).
+Copy-paste file: [`examples/omp-models.snippet.yml`](examples/omp-models.snippet.yml).
 
 ### Generic OpenAI clients
 
@@ -178,6 +199,7 @@ A copy-paste snippet also lives at [`examples/omp-models.snippet.yml`](examples/
 export OPENAI_BASE_URL=http://10.0.0.1:8888/v1
 export OPENAI_API_KEY=dummy
 # model = MiMo-V2.5-NVFP4
+# multimodal: send image_url / audio / video parts per OpenAI-compatible content arrays
 ```
 
 ---
