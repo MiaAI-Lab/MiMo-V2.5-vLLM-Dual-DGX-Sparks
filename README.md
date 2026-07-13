@@ -1,5 +1,9 @@
 # MiMo-V2.5 Omni · NVFP4 KV · TP=2 · 2× DGX Spark
 
+<p align="center">
+  <img src="assets/mimo.jpg" alt="Mia's MiMo-V2.5 Dual DGX Spark" width="100%" />
+</p>
+
 **Mia's MiMo-V2.5 Dual DGX Spark Start Script** — serve **MiMo-V2.5 Omni** (`MiMoV2OmniForCausalLM` + **MTP1**) with **4-bit NVFP4 KV** tensor-parallel across **two NVIDIA DGX Spark (GB10)** boxes with Ray, on port **8888**.
 
 <p>
