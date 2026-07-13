@@ -144,12 +144,12 @@ step() {
   printf '%s%s────────────────────────────────────────────────────────────%s\n' "$C_DIM" "$C_BOLD" "$C_RESET"
 }
 
-# Fixed-width double-line box rows (inner width = BOX_W). Avoids hand-counted
-# spaces drifting when titles change or Unicode middots widen the line.
+# Fixed-width double-line box rows (inner width = BOX_W).
+# Use ASCII-only body text (no · / —): those codepoints are ambiguous-width in
+# many terminals (esp. Windows) and pull the right border left even when
+# character-count padding is correct.
 BOX_W=62
 _BOX_BAR="$(printf '%*s' "$BOX_W" '' | sed 's/ /═/g')"
-# Pad/truncate by Unicode character count (bash ${#s}), not bytes — printf
-# %-Ns is byte-oriented and mis-aligns lines that contain · / — / etc.
 _pad_chars() {
   local text="$1" width="$2" n=${#1} pad
   if (( n > width )); then
@@ -172,31 +172,37 @@ _box_row() { # $1=frame-color $2=optional-text-color-or-empty $3=inner text
     printf '%s%s║%s%s%s%s║%s\n' "$fc" "$C_BOLD" "$C_RESET" "$pad" "$fc" "$C_BOLD" "$C_RESET"
   fi
 }
+# Success-banner field: fixed label column so values share one left edge.
+_box_field() { # $1=frame-color $2=label $3=value
+  local fc="$1" label="$2" value="$3"
+  # label pad to 7 chars → "API    " / "model  " / "shape  " / "reply  "
+  _box_row "$fc" '' "  $(printf '%-7s' "$label")${value}"
+}
 
 banner() {
   local mode="${1:-bring-up}"
   printf '\n'
   _box_rule "$C_CYAN" '╔' '╗'
   _box_row  "$C_CYAN" '' "  Mia's MiMo-V2.5 Dual DGX Spark Start Script"
-  _box_row  "$C_CYAN" '' "  Omni · MTP1 · NVFP4-KV · TP=2"
+  _box_row  "$C_CYAN" '' "  Omni | MTP1 | NVFP4-KV | TP=2"
   _box_row  "$C_CYAN" "$C_DIM" "  ${mode}"
   _box_rule "$C_CYAN" '╚' '╝'
-  printf '%s  %s:%s  →  %s (TP1)   ·  %s%s\n\n' \
+  printf '%s  %s:%s  ->  %s (TP1)  |  %s%s\n\n' \
     "$C_DIM" "$HEAD_IP" "$VLLM_PORT" "$WORKER_IP" "$SERVED_MODEL_NAME" "$C_RESET"
 }
 
 success_banner() {
   local reply="$1"
   local api="http://${HEAD_IP}:${VLLM_PORT}/v1"
-  local shape="${MAX_MODEL_LEN} ctx · ${MAX_NUM_SEQS} seqs · GMU ${GPU_MEMORY_UTILIZATION} · MTP${MTP_SPEC_TOKENS}"
+  local shape="${MAX_MODEL_LEN} ctx | ${MAX_NUM_SEQS} seqs | GMU ${GPU_MEMORY_UTILIZATION} | MTP${MTP_SPEC_TOKENS}"
   printf '\n'
   _box_rule "$C_GREEN" '╔' '╗'
-  _box_row  "$C_GREEN" '' "  READY — chat verified"
+  _box_row   "$C_GREEN" '' "  READY - chat verified"
   _box_rule "$C_GREEN" '╠' '╣'
-  _box_row  "$C_GREEN" '' "  API     ${api}"
-  _box_row  "$C_GREEN" '' "  model   ${SERVED_MODEL_NAME}"
-  _box_row  "$C_GREEN" '' "  shape   ${shape}"
-  _box_row  "$C_GREEN" '' "  reply   ${reply:0:48}"
+  _box_field "$C_GREEN" "API"    "$api"
+  _box_field "$C_GREEN" "model"  "$SERVED_MODEL_NAME"
+  _box_field "$C_GREEN" "shape"  "$shape"
+  _box_field "$C_GREEN" "reply"  "${reply:0:48}"
   _box_rule "$C_GREEN" '╚' '╝'
   printf '\n%sSmoke:%s\n' "$C_BOLD" "$C_RESET"
   printf '  curl -s http://%s:%s/v1/models | jq .\n' "$HEAD_IP" "$VLLM_PORT"
