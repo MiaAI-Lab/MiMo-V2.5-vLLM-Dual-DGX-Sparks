@@ -1,5 +1,6 @@
 # Runtime / local
 vllm.log
+docs/CRASH-FIX.md
 retry.log
 start-run.log
 last-config.txt

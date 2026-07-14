@@ -35,6 +35,7 @@ exec vllm serve "${MODEL_PATH}" \
   --max-model-len "${MAX_MODEL_LEN:-1000000}" \
   --max-num-batched-tokens "${MAX_NUM_BATCHED_TOKENS:-2048}" \
   --max-num-seqs "${MAX_NUM_SEQS:-3}" \
+  --max-tokens 32768 \
   --block-size "${BLOCK_SIZE:-64}" \
   --enable-prefix-caching \
   --enable-chunked-prefill \

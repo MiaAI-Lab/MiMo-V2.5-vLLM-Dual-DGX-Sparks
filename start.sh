@@ -794,8 +794,9 @@ run_containers() {
 # each prints "already patched") are applied on BOTH nodes.
 ###############################################################################
 ALL_PATCHES=(patch_mimo_v2_eagle3 patch_triton_noncausal patch_nc_fix patch_kv_page_lcm
-             patch_aux_layer_off_by_one patch_diffkv_noncausal
-             patch_draft_cache_auto patch_spec_dtype_guard)
+	             patch_aux_layer_off_by_one patch_diffkv_noncausal
+	             patch_draft_cache_auto patch_spec_dtype_guard
+	             patch_merge_multimodal_error patch_engine_core_error_isolation)
 
 apply_mods_patches_one() { # $1 = head|worker
   local node="$1" tag rdir
