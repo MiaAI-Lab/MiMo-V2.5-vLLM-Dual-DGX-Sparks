@@ -18,9 +18,10 @@
 #   bash start.sh --teardown   # ray stop + container stop on both nodes, exit
 #
 # Weights (full run only): if the HF hub cache is missing or incomplete, downloads
-#   with `hf` on the head (resumable), then rsyncs the Omni target to the worker.
+#   with `hf` on the head (resumable), then rsyncs the Omni target to the worker
+#   only when the worker cache is missing/incomplete (skip if already complete).
 #   Override: TARGET_REPO / TARGET_REVISION / AUTO_DOWNLOAD_MODELS=0 /
-#   SYNC_MODELS_TO_WORKER=0.
+#   SYNC_MODELS_TO_WORKER=0 / FORCE_SYNC_MODELS_TO_WORKER=1.
 #
 # Exit 0 ONLY after a real chat completion returns non-empty content.
 # =============================================================================
@@ -82,7 +83,8 @@ MODEL_HOST_DIR="${MODEL_HOST_DIR:-}"          # models--<org>--<name> hub cache 
 TARGET_REPO="${TARGET_REPO:-lukealonso/MiMo-V2.5-NVFP4}"
 TARGET_REVISION="${TARGET_REVISION:-a147dd04d6cf861e43b2d783dcde23b53ab7ee68}"
 AUTO_DOWNLOAD_MODELS="${AUTO_DOWNLOAD_MODELS:-1}"   # 1 = download if missing/incomplete
-SYNC_MODELS_TO_WORKER="${SYNC_MODELS_TO_WORKER:-1}" # 1 = rsync head cache → worker local hub
+SYNC_MODELS_TO_WORKER="${SYNC_MODELS_TO_WORKER:-1}" # 1 = rsync head → worker when incomplete
+FORCE_SYNC_MODELS_TO_WORKER="${FORCE_SYNC_MODELS_TO_WORKER:-0}" # 1 = always rsync even if complete
 WORKER_HF_HUB="${WORKER_HF_HUB:-}"
 
 # --- Omni MTP1 + NVFP4-KV shape ---------------------------------------------
@@ -230,7 +232,10 @@ first_snapshot_rev() { # $1 = model dir ; echoes the single snapshot rev or the 
   echo "$r"
 }
 
-# Returns 0 if cache+revision look fully downloaded (no .incomplete, index shards OK).
+# Returns 0 if cache+revision look fully usable (config + weight shards resolve).
+# Orphan blobs/*.incomplete from a different/partial download are ignored when the
+# requested snapshot's files all resolve — those leftovers must not force re-download
+# or re-rsync of an otherwise complete revision.
 # $1=cache_dir  $2=revision  $3=optional subdir (e.g. dflash)
 hf_cache_complete() {
   local cache="$1" rev="$2" sub="${3:-}"
@@ -239,10 +244,6 @@ hf_cache_complete() {
   [ -d "$cache" ] || return 1
   [ -d "$cache/blobs" ] || return 1
   [ -e "$snap/config.json" ] || return 1
-  # Partial HF downloads leave *.incomplete under blobs/
-  if compgen -G "$cache/blobs/*.incomplete" >/dev/null 2>&1; then
-    return 1
-  fi
   python3 - "$snap" <<'PY'
 import json, sys
 from pathlib import Path
@@ -279,8 +280,7 @@ if sub:
 blobs = Path(cache) / "blobs"
 if not blobs.is_dir() or not (snap / "config.json").exists():
     raise SystemExit(1)
-if any(blobs.glob("*.incomplete")):
-    raise SystemExit(1)
+# Orphan *.incomplete ignored when snapshot weights resolve (same as local check).
 idx = snap / "model.safetensors.index.json"
 if idx.exists():
     files = sorted(set((json.loads(idx.read_text()).get("weight_map") or {}).values()))
@@ -294,6 +294,24 @@ if idx.exists():
 cands = list(snap.glob("*.safetensors")) + list(snap.glob("*.pt"))
 raise SystemExit(0 if cands else 1)
 PY
+}
+
+# Prefer pinned rev if complete; else any complete snapshot in cache; else empty.
+resolve_complete_snapshot_rev() {
+  local cache="$1" prefer="$2"
+  local rev
+  if [ -n "$prefer" ] && hf_cache_complete "$cache" "$prefer"; then
+    echo "$prefer"
+    return 0
+  fi
+  [ -d "$cache/snapshots" ] || return 1
+  for rev in $(ls -1 "$cache/snapshots" 2>/dev/null); do
+    if hf_cache_complete "$cache" "$rev"; then
+      echo "$rev"
+      return 0
+    fi
+  done
+  return 1
 }
 
 find_hf_cli() {
@@ -355,12 +373,25 @@ ensure_one_model_head() {
   fi
   if hf_cache_complete "$cache" "$rev" "$sub"; then
     log "$label complete: $cache @$rev${sub:+/$sub}"
+    MODEL_SNAPSHOT_REV="$rev"
     return 0
   fi
 
   # Target only: reuse any already-complete Omni hub dir before re-pulling ~171G.
+  # Also accept another complete snapshot in the same cache when the pin is absent
+  # (common: refs/main or an older full rev vs a different TARGET_REVISION pin).
   if [ "$label" = "target" ]; then
-    local cand alt_rev
+    local cand alt_rev found_rev
+    if found_rev=$(resolve_complete_snapshot_rev "$cache" "$rev"); then
+      if [ "$found_rev" != "$rev" ]; then
+        log "$label: pin $rev missing/incomplete; using complete snapshot @$found_rev in $cache (skip download)"
+      else
+        log "$label complete: $cache @$found_rev"
+      fi
+      printf -v "$var" '%s' "$cache"
+      MODEL_SNAPSHOT_REV="$found_rev"
+      return 0
+    fi
     for cand in \
       "$HF_HOME_HOST/hub/models--lukealonso--MiMo-V2.5-NVFP4" \
       "/mnt/models--lukealonso--MiMo-V2.5-NVFP4" \
@@ -369,22 +400,12 @@ ensure_one_model_head() {
       "/mnt/models--mitomtuna--MiMo-V2.5-0703-NVFP4"; do
       [ "$cand" = "$cache" ] && continue
       [ -d "$cand/snapshots" ] || continue
-      # Prefer the pinned TARGET_REVISION, then any complete rev in this cache.
-      if hf_cache_complete "$cand" "$rev" "$sub"; then
-        log "$label: using existing complete cache $cand @$rev (skip download)"
+      if found_rev=$(resolve_complete_snapshot_rev "$cand" "$rev"); then
+        log "$label: using existing complete cache $cand @$found_rev (skip download)"
         printf -v "$var" '%s' "$cand"
-        MODEL_SNAPSHOT_REV="$rev"
+        MODEL_SNAPSHOT_REV="$found_rev"
         return 0
       fi
-      for alt_rev in $(ls -1 "$cand/snapshots" 2>/dev/null); do
-        [ "$alt_rev" = "$rev" ] && continue
-        if hf_cache_complete "$cand" "$alt_rev"; then
-          log "$label: using existing complete cache $cand @$alt_rev (skip download)"
-          printf -v "$var" '%s' "$cand"
-          MODEL_SNAPSHOT_REV="$alt_rev"
-          return 0
-        fi
-      done
     done
   fi
 
@@ -412,21 +433,31 @@ rsync_cache_to_worker() {
   wlog "syncing $label → worker:$dst"
   sshw "mkdir -p $(printf '%q' "$(dirname "$dst")")"
   # -a keeps hub symlink layout; --delete drops stale partials on the worker.
+  # Exclude leftover HF download temps so orphan *.incomplete on the head are not
+  # copied (and so --delete does not force them onto the worker).
   rsync -aH --delete --info=stats2 \
+    --exclude='*.incomplete' \
     -e "ssh ${SSH_OPTS[*]}" \
     "$src/" "${SSH_USER}@${WORKER_IP}:$dst/"
 }
 
 ensure_models() {
   # Head: ensure Omni target complete (download/resume if needed).
-  # Worker: rsync cache to the worker's local HF hub, then verify.
+  # Worker: rsync head hub → worker only when missing/incomplete (or forced), then verify.
   ensure_one_model_head "target" "$TARGET_REPO" "$TARGET_REVISION" MODEL_HOST_DIR ""
 
-  MODEL_SNAPSHOT_REV="${MODEL_SNAPSHOT_REV:-$TARGET_REVISION}"
-
-  if ! hf_cache_complete "$MODEL_HOST_DIR" "$MODEL_SNAPSHOT_REV"; then
-    MODEL_SNAPSHOT_REV=$(first_snapshot_rev "$MODEL_HOST_DIR") || true
+  local resolved
+  if resolved=$(resolve_complete_snapshot_rev "$MODEL_HOST_DIR" "${MODEL_SNAPSHOT_REV:-$TARGET_REVISION}"); then
+    MODEL_SNAPSHOT_REV="$resolved"
+  else
+    MODEL_SNAPSHOT_REV="${MODEL_SNAPSHOT_REV:-$TARGET_REVISION}"
+    MODEL_SNAPSHOT_REV="${MODEL_SNAPSHOT_REV:-$(first_snapshot_rev "$MODEL_HOST_DIR" || true)}"
   fi
+  if [ -z "${MODEL_SNAPSHOT_REV:-}" ]; then
+    err "could not resolve a model snapshot revision under $MODEL_HOST_DIR"
+    return 1
+  fi
+  log "using snapshot revision $MODEL_SNAPSHOT_REV (pin was $TARGET_REVISION)"
 
   MODEL_PATH="${MODEL_PATH/snapshots\/auto/snapshots/$MODEL_SNAPSHOT_REV}"
   export MODEL_HOST_DIR MODEL_SNAPSHOT_REV MODEL_PATH
@@ -437,7 +468,14 @@ ensure_models() {
   WORKER_MODEL_HOST_DIR="${WORKER_MODEL_HOST_DIR:-$hub/$(basename "$MODEL_HOST_DIR")}"
 
   if [ "${SYNC_MODELS_TO_WORKER}" = "1" ]; then
-    rsync_cache_to_worker "$MODEL_HOST_DIR" "$WORKER_MODEL_HOST_DIR" "target"
+    if [ "${FORCE_SYNC_MODELS_TO_WORKER}" = "1" ]; then
+      rsync_cache_to_worker "$MODEL_HOST_DIR" "$WORKER_MODEL_HOST_DIR" "target"
+    elif hf_cache_complete_remote "$WORKER_MODEL_HOST_DIR" "$MODEL_SNAPSHOT_REV"; then
+      wlog "target already complete on worker — skip rsync ($WORKER_MODEL_HOST_DIR @$MODEL_SNAPSHOT_REV)"
+    else
+      wlog "target missing/incomplete on worker @$MODEL_SNAPSHOT_REV — rsync from head"
+      rsync_cache_to_worker "$MODEL_HOST_DIR" "$WORKER_MODEL_HOST_DIR" "target"
+    fi
   else
     WORKER_MODEL_HOST_DIR=$(detect_worker_model_dir) || return 1
   fi
@@ -524,8 +562,9 @@ print_config() {
     "shape" "$MAX_MODEL_LEN" "$MAX_NUM_SEQS" "$MAX_NUM_BATCHED_TOKENS" "$BLOCK_SIZE" "$GPU_MEMORY_UTILIZATION"
   printf '  %-14s %s / %s\n' "KV / attn" "$KV_CACHE_DTYPE" "$ATTENTION_BACKEND"
   printf '  %-14s %s\n' "image" "$OVERLAY_TAG"
-  printf '  %-14s download=%s  sync=%s  retries=%s\n' \
-    "flags" "$AUTO_DOWNLOAD_MODELS" "$SYNC_MODELS_TO_WORKER" "$MAX_RELAY_ATTEMPTS"
+  printf '  %-14s download=%s  sync=%s  force_sync=%s  retries=%s\n' \
+    "flags" "$AUTO_DOWNLOAD_MODELS" "$SYNC_MODELS_TO_WORKER" \
+    "$FORCE_SYNC_MODELS_TO_WORKER" "$MAX_RELAY_ATTEMPTS"
   printf '%s%s└────────────────────────────────────────────────────────────┘%s\n' "$C_DIM" "$C_BOLD" "$C_RESET"
 }
 
