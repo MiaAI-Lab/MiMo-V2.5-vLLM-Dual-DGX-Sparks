@@ -796,7 +796,6 @@ run_containers() {
 ALL_PATCHES=(patch_mimo_v2_eagle3 patch_triton_noncausal patch_nc_fix patch_kv_page_lcm
 	             patch_aux_layer_off_by_one patch_diffkv_noncausal
 	             patch_draft_cache_auto patch_spec_dtype_guard
-	             patch_max_tokens_clamp
 	             patch_merge_multimodal_error patch_engine_core_error_isolation)
 
 apply_mods_patches_one() { # $1 = head|worker
@@ -989,8 +988,7 @@ launch_vllm() {
     export GPU_MEMORY_UTILIZATION='"$GPU_MEMORY_UTILIZATION"'
     export TENSOR_PARALLEL_SIZE='"$TENSOR_PARALLEL_SIZE"'
     export ENFORCE_EAGER='"$ENFORCE_EAGER"'
-	    export MAX_TOKENS_LIMIT="${MAX_TOKENS_LIMIT:-32768}"
-	    export KV_CACHE_DTYPE='"$KV_CACHE_DTYPE"'
+    export KV_CACHE_DTYPE='"$KV_CACHE_DTYPE"'
     export ATTENTION_BACKEND='"$ATTENTION_BACKEND"'
     export ENABLE_MTP='"$ENABLE_MTP"'
     export MTP_SPEC_TOKENS='"$MTP_SPEC_TOKENS"'
