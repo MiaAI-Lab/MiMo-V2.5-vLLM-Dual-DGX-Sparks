@@ -1,0 +1,46 @@
+SANITIZED TRANSCRIPTION
+
+The original log was rotated when the service restarted. This excerpt was
+transcribed from the captured terminal output and deliberately omits the image
+tensor dump, request identifier, process identifiers, node addresses, and
+machine names.
+
+EngineCore encountered a fatal error.
+
+Traceback (most recent call last):
+  File "vllm/v1/engine/core.py", line 1152, in run_engine_core
+    engine_core.run_busy_loop()
+  File "vllm/v1/engine/core.py", line 1193, in run_busy_loop
+    self._process_engine_step()
+  File "vllm/v1/engine/core.py", line 1232, in _process_engine_step
+    outputs, model_executed = self.step_fn()
+  File "vllm/v1/engine/core.py", line 445, in step
+    model_output = self.model_executor.sample_tokens(grammar_output)
+  File "vllm/v1/executor/ray_executor.py", line 449, in sample_tokens
+    return self._execute_dag(scheduler_output, grammar_output, non_block)
+  File "vllm/v1/executor/ray_executor.py", line 467, in _execute_dag
+    output = refs[0].get()
+
+ray.exceptions.RayTaskError(ValueError): ray::RayWorkerWrapper()
+
+torch.AcceleratorError: CUDA error: operation not permitted
+Search for `cudaErrorNotPermitted` in the CUDA Runtime API documentation.
+
+  File "vllm/v1/executor/ray_utils.py", line 143, in execute_model_ray
+    output = self.worker.model_runner.execute_model(...)
+  File "vllm/v1/worker/gpu_model_runner.py", line 4241, in execute_model
+    ) = self._preprocess(...)
+  File "vllm/v1/worker/gpu_model_runner.py", line 3386, in _preprocess
+    inputs_embeds_scheduled = self.model.embed_input_ids(...)
+  File "vllm/model_executor/models/interfaces.py", line 404, in embed_input_ids
+    return _merge_multimodal_embeddings(...)
+  File "vllm/model_executor/models/utils.py", line 492, in
+  _merge_multimodal_embeddings
+    raise ValueError("Error during index put operation") from e
+
+ValueError: Error during index put operation
+
+EngineCore: Shutting down Ray distributed executor.
+APIServer: AsyncLLM output_handler failed.
+vllm.v1.engine.exceptions.EngineDeadError: EngineCore encountered an issue.
+APIServer: Application shutdown complete.

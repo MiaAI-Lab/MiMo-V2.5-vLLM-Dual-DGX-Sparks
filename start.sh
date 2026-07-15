@@ -795,7 +795,11 @@ run_containers() {
 ###############################################################################
 ALL_PATCHES=(patch_mimo_v2_eagle3 patch_triton_noncausal patch_nc_fix patch_kv_page_lcm
              patch_aux_layer_off_by_one patch_diffkv_noncausal
-             patch_draft_cache_auto patch_spec_dtype_guard)
+             patch_draft_cache_auto patch_spec_dtype_guard
+             # Multimodal crash mitigations — clamp + diagnostic only (code path).
+             # Never add --max-tokens CLI (unsupported on this vLLM). Isolation
+             # is intentionally NOT applied: CUDA device poison is not recoverable.
+             patch_max_tokens_clamp patch_merge_multimodal_error)
 
 apply_mods_patches_one() { # $1 = head|worker
   local node="$1" tag rdir
@@ -987,6 +991,8 @@ launch_vllm() {
     export GPU_MEMORY_UTILIZATION='"$GPU_MEMORY_UTILIZATION"'
     export TENSOR_PARALLEL_SIZE='"$TENSOR_PARALLEL_SIZE"'
     export ENFORCE_EAGER='"$ENFORCE_EAGER"'
+    # Server-side output-token cap used by patch_max_tokens_clamp (default 32768).
+    export MAX_TOKENS_LIMIT='"${MAX_TOKENS_LIMIT:-32768}"'
     export KV_CACHE_DTYPE='"$KV_CACHE_DTYPE"'
     export ATTENTION_BACKEND='"$ATTENTION_BACKEND"'
     export ENABLE_MTP='"$ENABLE_MTP"'
